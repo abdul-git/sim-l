@@ -1,0 +1,782 @@
+#!/bin/bash
+# Redhat Security Hardening for RHEL 7
+# by pawel.osobinski
+# version 0.003
+#updated by David Matinyarare -to suite APC standards
+############################################
+#             ! WARNING !                  #
+# ALWAYS TAKE AN EXTRA BACKUP OR SNAPSHOT  #
+# BETTER SAFE THAN SORRY ]:->              #
+############################################
+
+echo "####################################"
+echo "Redhat Security Hardening for RHEL 7"
+echo "####################################"
+echo $(id)
+
+############################################
+### VARIABLES SECTION                    ###
+############################################
+
+# Hardening Directory
+DIR_HARDENHOME='/root/preHARDEN'; export DIR_HARDENHOME; # Location of files which will be modified during hardening (this dir is excluded from DIR_ARRAY)
+# Umask for users (default 022)
+USRMASK='027'
+# Umask for daemons (default 022)
+DMNMASK='027'
+
+# FILEs & directories section ##############
+# Definitions of all files/dirs which will be
+# modified during hardening process 
+# absolute path to file is required
+FILE_CTRLALTDEL='/etc/systemd/system/ctrl-alt-del.target';
+FILE_WTMP='/var/log/wtmp';
+FILE_SSH_CONFIG='/etc/ssh/ssh_config';
+FILE_SSHD_CONFIG='/etc/ssh/sshd_config';
+FILE_FUNCTIONS='/etc/rc.d/init.d/functions';
+FILE_INIT='/etc/sysconfig/init';
+FILE_SYSCTL='/etc/sysctl.conf';
+FILE_RSYSLOG='/etc/rsyslog.conf';
+FILE_GROUP='/etc/group';
+FILE_GSHADOW='/etc/gshadow';
+FILE_PASSWD='/etc/passwd';
+FILE_SHADOW='/etc/shadow';
+FILE_CRON_ALLOW='/etc/cron.allow';
+FILE_AT_ALLOW='/etc/at.allow';
+FILE_CRONTAB='/etc/crontab';
+FILE_SPOOL_CRON='/var/spool/cron';
+FILE_ANACRONTAB='/etc/anacrontab';
+FILE_CROND='/etc/cron.d';
+FILE_CRON_DAILY='/etc/cron.daily';
+FILE_CRON_DENY='/etc/cron.deny';
+FILE_CRON_HOURLY='/etc/cron.hourly';
+FILE_CRON_WEEKLY='/etc/cron.weekly';
+FILE_CRON_MONTHLY='/etc/cron.monthly';
+FILE_SECURETTY='/etc/securetty';
+FILE_LOGIN_DEFS='/etc/login.defs';
+FILE_BASHRC='/etc/bashrc';
+FILE_CSH_CSHRC='/etc/csh.cshrc';
+FILE_CSH_LOGIN='/etc/csh.login';
+FILE_PROFILE='/etc/profile';
+FILE_ROOT_BASH_PROFILE='/root/.bash_profile';
+FILE_SKEL_BASHRC='/etc/skel/.bashrc';
+FILE_ROOT_BASHRC='/root/.bashrc';
+FILE_ROOT_CSHRC='/root/.cshrc';
+FILE_TCSHRC='/root/.tcshrc';
+FILE_LIMITS_CONF='/etc/security/limits.conf';
+FILE_ISSUE_NET='/etc/issue.net';
+FILE_ISSUE='/etc/issue';
+FILE_MOTD='/etc/motd';
+FILE_SYSTEM_AUTHAC='/etc/pam.d/system-auth-ac';
+FILE_SHARE_DOC='/usr/share/doc';
+FILE_LOCAL_SHARE_DOC='/usr/local/share/doc';
+FILE_SHARE_MAN='/usr/share/man';
+FILE_LOCAL_SHARE_MAN='/usr/local/share/man';
+FILE_ETC_ALIASES='/etc/aliases';
+
+## FILE & DIR array
+# this array will be used to export variables
+# create backup of files and directories, 
+# perform activities inside files/dirs etc. 
+FILE_ARRAY=( 
+$FILE_CTRLALTDEL
+$FILE_WTMP
+$FILE_SSH_CONFIG
+$FILE_SSHD_CONFIG
+$FILE_FUNCTIONS
+$FILE_INIT
+$FILE_SYSCTL
+$FILE_RSYSLOG
+$FILE_GROUP
+$FILE_GSHADOW
+$FILE_PASSWD
+$FILE_SHADOW
+$FILE_CRON_ALLOW
+$FILE_AT_ALLOW
+$FILE_CRONTAB
+$FILE_SPOOL_CRON
+$FILE_ANACRONTAB
+$FILE_CROND
+$FILE_CRON_DAILY
+$FILE_CRON_DENY
+$FILE_CRON_HOURLY
+$FILE_CRON_WEEKLY
+$FILE_CRON_MONTHLY
+$FILE_SECURETTY
+$FILE_LOGIN_DEFS
+$FILE_BASHRC
+$FILE_CSH_CSHRC
+$FILE_CSH_LOGIN
+$FILE_PROFILE
+$FILE_ROOT_BASH_PROFILE
+$FILE_SKEL_BASHRC
+$FILE_ROOT_BASHRC
+$FILE_ROOT_CSHRC
+$FILE_TCSHRC
+$FILE_LIMITS_CONF
+$FILE_ISSUE_NET
+$FILE_ISSUE
+$FILE_MOTD
+$FILE_SYSTEM_AUTHAC
+$FILE_SHARE_DOC
+$FILE_LOCAL_SHARE_DOC
+$FILE_SHARE_MAN
+$FILE_LOCAL_SHARE_MAN
+$FILE_ETC_ALIASES
+);
+
+# SerViCes section #########################
+# Definitions of all services impacted (turned on/off) 
+# by hardening script - need 2nd review
+## OFF part begin
+SVC_OFF_TALK='talk';
+SVC_OFF_PRINTER='printer';
+SVC_OFF_HALDAEMON='haldaemon';
+SVC_OFF_TELNET='telnet';
+SVC_OFF_RLOGIND='rlogind';
+SVC_OFF_REXEC='rexec';
+SVC_OFF_REXD='rexd';
+SVC_OFF_RSHD='rshd';
+SVC_OFF_RSTATD='rstatd';
+SVC_OFF_RUSERSD='rusersd';
+SVC_OFF_PORTMAP='portmap';
+SVC_OFF_PCSCD='pcscd';
+SVC_OFF_NTALK='ntalk';
+SVC_OFF_MCTRANS='mctrans';
+SVC_OFF_MDMONITOR='mdmonitor';
+SVC_OFF_KSHELL='kshell';
+SVC_OFF_KLOGIN='klogin';
+SVC_OFF_KCMS='kcms';
+SVC_OFF_IDENTD='identd';
+SVC_OFF_HPLIP='hplip';
+SVC_OFF_TFTP='tftp';
+SVC_OFF_FTP='ftp';
+SVC_OFF_DTSPCD='dtspcd';
+SVC_OFF_DTSPC='dtspc';
+SVC_OFF_DISCARD='discard';
+SVC_OFF_DAYTIME='daytime';
+SVC_OFF_CHARGEN='chargen';
+SVC_OFF_COMSAT='comsat';
+SVC_OFF_CMSD='cmsd';
+SVC_OFF_RPC_CMSD='rpc.cmsd';
+SVC_OFF_FINGER='finger';
+SVC_OFF_BOOTPS='bootps';
+SVC_OFF_APMD='apmd';
+SVC_OFF_NETWORKMANAGER='NetworkManager';
+SVC_OFF_AUTOFS='autofs';
+SVC_OFF_AVAHI_DAEMON='avahi-daemon';
+SVC_OFF_CERTMONGER='certmonger';
+SVC_OFF_CGCONFIG='cgconfig';
+SVC_OFF_CGRED='cgred';
+SVC_OFF_DNSMASQ='dnsmasq';
+SVC_OFF_FIRSTBOOT='firstboot';
+SVC_OFF_IP6TABLES='ip6tables';
+SVC_OFF_IPTABLES='iptables';
+SVC_OFF_MICROCODE_CTL='microcode_ctl';
+SVC_OFF_NETCONSOLE='netconsole';
+SVC_OFF_NFS='nfs';
+SVC_OFF_NFSLOCK='nfslock';
+SVC_OFF_NSCD='nscd';
+SVC_OFF_NSLCD='nslcd';
+SVC_OFF_NTPDATE='ntpdate';
+SVC_OFF_ODDJOBD='oddjobd';
+SVC_OFF_POSTFIX='postfix';
+SVC_OFF_PSACCT='psacct';
+SVC_OFF_RDISC='rdisc';
+SVC_OFF_RESTORECOND='restorecond';
+SVC_OFF_RPCBIND='rpcbind';
+SVC_OFF_RPCSVCGSSD='rpcsvcgssd';
+SVC_OFF_SASLAUTHD='saslauthd';
+SVC_OFF_SMARTD='smartd';
+SVC_OFF_SSSD='sssd';
+SVC_OFF_WPA_SUPPLICANT='wpa_supplicant';
+SVC_OFF_YPBIND='ypbind';
+SVC_OFF_APMD='apmd';
+SVC_OFF_BLUETOOTH='bluetooth';
+SVC_OFF_CUPS='cups';
+SVC_OFF_GPM='gpm';
+SVC_OFF_HTTPD='httpd';
+SVC_OFF_IRDA='irda';
+SVC_OFF_ISDN='isdn';
+SVC_OFF_KTUNE='ktune';
+SVC_OFF_KUDZU='kudzu';
+SVC_OFF_MYSQLD='mysqld';
+SVC_OFF_NAMED='named';
+SVC_OFF_PORTMAP='portmap';
+SVC_OFF_POSTGRESQL='postgresql';
+SVC_OFF_PRIVOXY='privoxy';
+SVC_OFF_QUOTA_NLD='quota_nld';
+SVC_OFF_RNGD='rngd';
+SVC_OFF_RSTATD='rstatd';
+SVC_OFF_RUSERSD='ruserd';
+SVC_OFF_RWHOD='rwhod';
+SVC_OFF_SMB='smd';
+SVC_OFF_SNMPD='snmpd';
+SVC_OFF_SPAMASSASSIN='spamassasin';
+SVC_OFF_SPICE_VDAGENTD='spice-vdegentd';
+SVC_OFF_SQUID='squid';
+SVC_OFF_TUNED='tuned';
+SVC_OFF_TUX='tux';
+SVC_OFF_WDAEMON='wdeamon';
+SVC_OFF_WINE='wine';
+SVC_OFF_YPSERV='ypserv';
+SVC_OFF_YPXFRD='ypxfrd';
+SVC_OFF_YUM_UPDATESD='yum-updatesd';
+SVC_OFF_ZEBRA='zebra';
+SVC_OFF_ABRT_CCPP='abrt-ccpp';
+SVC_OFF_ABRT_OOPS='abrt-oops';
+SVC_OFF_MCELOGD='mcelogd';
+SVC_OFF_PORTRESERVE='portreserve';
+SVC_OFF_QPIDD='qpidd';
+SVC_OFF_REDIS='redis';
+SVC_OFF_RHSMCERTD='rhsmcertd';
+
+## OFF part end
+
+## SVC OFF array begin
+SVC_OFF_ARRAY=(
+$SVC_OFF_TALK
+$SVC_OFF_PRINTER
+$SVC_OFF_HALDAEMON
+$SVC_OFF_TELNET
+$SVC_OFF_RLOGIND
+$SVC_OFF_REXEC
+$SVC_OFF_REXD
+$SVC_OFF_RSHD
+$SVC_OFF_RSTATD
+$SVC_OFF_RUSERSD
+$SVC_OFF_PORTMAP
+$SVC_OFF_PCSCD
+$SVC_OFF_NTALK
+$SVC_OFF_MCTRANS
+$SVC_OFF_MDMONITOR
+$SVC_OFF_KSHELL
+$SVC_OFF_KLOGIN
+$SVC_OFF_KCMS
+$SVC_OFF_FIREWALLD
+$SVC_OFF_IDENTD
+$SVC_OFF_HPLIP
+$SVC_OFF_TFTP
+$SVC_OFF_FTP
+$SVC_OFF_DTSPCD
+$SVC_OFF_DTSPC
+$SVC_OFF_DISCARD
+$SVC_OFF_DAYTIME
+$SVC_OFF_CHARGEN
+$SVC_OFF_COMSAT
+$SVC_OFF_CMSD
+$SVC_OFF_RPC_CMSD
+$SVC_OFF_FINGER
+$SVC_OFF_BOOTPS
+$SVC_OFF_APMD
+$SVC_OFF_NETWORKMANAGER
+$SVC_OFF_AUTOFS
+$SVC_OFF_AVAHI_DAEMON
+$SVC_OFF_CERTMONGER
+$SVC_OFF_CGCONFIG
+$SVC_OFF_CGRED
+$SVC_OFF_DNSMASQ
+$SVC_OFF_FIRSTBOOT
+$SVC_OFF_IP6TABLES
+$SVC_OFF_IPTABLES
+$SVC_OFF_KDUMP
+$SVC_OFF_MICROCODE_CTL
+$SVC_OFF_NETCONSOLE
+$SVC_OFF_NFS
+$SVC_OFF_NFSLOCK
+$SVC_OFF_NSCD
+$SVC_OFF_NSLCD
+$SVC_OFF_NTPDATE
+$SVC_OFF_ODDJOBD
+$SVC_OFF_POSTFIX
+$SVC_OFF_PSACCT
+$SVC_OFF_RDISC
+$SVC_OFF_RESTORECOND
+$SVC_OFF_RPCBIND
+$SVC_OFF_RPCSVCGSSD
+$SVC_OFF_SASLAUTHD
+$SVC_OFF_SMARTD
+$SVC_OFF_SSSD
+$SVC_OFF_WPA_SUPPLICANT
+$SVC_OFF_YPBIND
+$SVC_OFF_APMD
+$SVC_OFF_BLUETOOTH
+$SVC_OFF_CUPS
+$SVC_OFF_GPM
+$SVC_OFF_HTTPD
+$SVC_OFF_IRDA
+$SVC_OFF_ISDN
+$SVC_OFF_KTUNE
+$SVC_OFF_KUDZU
+$SVC_OFF_MYSQLD
+$SVC_OFF_NAMED
+$SVC_OFF_PORTMAP
+$SVC_OFF_POSTGRESQL
+$SVC_OFF_PRIVOXY
+$SVC_OFF_QUOTA_NLD
+$SVC_OFF_RNGD
+$SVC_OFF_RSTATD
+$SVC_OFF_RUSERSD
+$SVC_OFF_RWHOD
+$SVC_OFF_SMB
+$SVC_OFF_SNMPD
+$SVC_OFF_SPAMASSASSIN
+$SVC_OFF_SPICE_VDAGENTD
+$SVC_OFF_SQUID
+$SVC_OFF_TUNED
+$SVC_OFF_TUX
+$SVC_OFF_WDAEMON
+$SVC_OFF_WINE
+$SVC_OFF_YPSERV
+$SVC_OFF_YPXFRD
+$SVC_OFF_YUM_UPDATESD
+$SVC_OFF_ZEBRA
+$SVC_OFF_ABRT_CCPP
+$SVC_OFF_ABRT_OOPS
+$SVC_OFF_MCELOGD
+$SVC_OFF_PORTRESERVE
+$SVC_OFF_QPIDD
+$SVC_OFF_REDIS
+$SVC_OFF_RHSMCERTD
+);
+## SVC OFF array end
+
+## ON part begin
+SVC_ON_SETROUBLESHOOT='setroubleshoot';
+SVC_ON_ABRTD='abrtd';
+SVC_ON_ACPID='acpid';
+SVC_ON_ATD='atd';
+SVC_ON_AUDITD='auditd';
+SVC_ON_CPUSPEED='cpuspeed';
+SVC_ON_CROND='crond';
+SVC_ON_IRQBALANCE='irqbalance';
+SVC_ON_LVM2_MONITOR='lvm2-monitor';
+SVC_ON_MDMONITOR='mdmonitor';
+SVC_ON_MESSAGEBUS='messagebus';
+SVC_ON_NETFS='netfs';
+SVC_ON_NETWORK='network';
+SVC_ON_NTPD='ntpd';
+SVC_ON_RHNSD='rhnsd';
+SVC_ON_RPCGSSD='rpcgssd';
+SVC_ON_RPCIDMAPD='rpcidmapd';
+SVC_ON_RSYSLOG='rsyslog';
+SVC_ON_SSHD='sshd';
+SVC_ON_SYSSTAT='sysstat';
+SVC_ON_UDEV_POST='udev-post';
+
+## ON part end
+
+#systemctl stop avahi-daemon.socket avahi-daemon.service
+#systemctl disable avahi-daemon.socket avahi-daemon.service
+
+
+## SVC ON array begin
+# this arrays will be used to enable
+# rhel services at ones 
+SVC_ON_ARRAY=(
+$SVC_ON_KDUMP
+$SVC_ON_SETROUBLESHOOT
+$SVC_ON_ABRTD
+$SVC_ON_ACPID
+$SVC_ON_ATD
+$SVC_ON_AUDITD
+$SVC_ON_CPUSPEED
+$SVC_ON_CROND
+$SVC_ON_IRQBALANCE
+$SVC_ON_LVM2_MONITOR
+$SVC_ON_MDMONITOR
+$SVC_ON_MESSAGEBUS
+$SVC_ON_NETFS
+$SVC_ON_NETWORK
+$SVC_ON_NTPD
+$SVC_ON_RHNSD
+$SVC_ON_RPCGSSD
+$SVC_ON_RPCIDMAPD
+$SVC_ON_RSYSLOG
+$SVC_ON_SSHD
+$SVC_ON_SYSSTAT
+$SVC_ON_UDEV_POST
+);
+## SVC ON array end
+
+
+
+############################################
+### BACKUP SECTION                       ###
+############################################
+
+#Unalias all commands once for all
+#unalias cp rm mv
+
+# Create directory where all changed files/directories
+# will reside in case of restoration process
+echo -n "Setting hardening backup directory: "
+mkdir ${DIR_HARDENHOME}
+if [ -d ${DIR_HARDENHOME} ]; then
+	echo "DONE";
+else
+	echo "FAILED";
+      exit 1;
+fi
+
+echo "Back up existing configuration: ";
+
+echo "+Files/directories : ";
+
+for FILE in  ${FILE_ARRAY[@]}; do #everything is a file :)
+
+    if [ -h ${FILE} ] # link
+    then
+      cp -L ${FILE} ${DIR_HARDENHOME}
+    elif [ -d ${FILE} ] # dir
+    then
+      cp -pRL ${FILE} ${DIR_HARDENHOME}
+    elif [ -f ${FILE} ] # file
+    then
+      cp -p ${FILE} ${DIR_HARDENHOME}
+    else
+	  echo "${FILE} : does not exist"
+	fi
+	echo ${FILE} >> ${DIR_HARDENHOME}/$(date +%Y%m%d)-backup_file_index
+done
+echo "DONE";
+
+# Save the current state of services 
+echo -n "+Services state : " 
+	systemctl list-unit-files --type=service --no-pager >> ${DIR_HARDENHOME}/$(date +%Y%m%d)-system_service_state
+echo "DONE";
+# Save the current state of systemd units (services,sockets,targets etc)
+echo -n "+Systemd all units state : " 
+	systemctl list-unit-files --no-pager >> ${DIR_HARDENHOME}/$(date +%Y%m%d)-systemd_state
+echo "DONE";
+
+
+############################################
+### HARDENING SECTION                    ###
+############################################
+
+### Disable ctrl-alt-delete key sequence ###
+echo -n "Disabling ctrl-alt-delete key sequence: "
+ln -sf /dev/null ${FILE_CTRLALTDEL}
+echo "DONE"
+
+### Secure wtmp file ###
+echo -n "Changing permission and owner of wtmp file: "
+if [ -e ${FILE_WTMP} ]; then
+	chown root:utmp ${FILE_WTMP}
+	chmod 644 ${FILE_WTMP}
+	echo "DONE"
+else
+   echo "FAILED - No $FILE_WTMP to secure."
+fi
+
+### SSH Configuration ###
+echo "Editing SSH Configuration:"
+
+if [ -e ${FILE_SSH_CONFIG} ]; then
+   echo -n "- Securing ${FILE_SSH_CONFIG} : "
+   sed -i '/^[[:space:]]*Host \*.*$/d' ${FILE_SSH_CONFIG}; echo "Host *" >> ${FILE_SSH_CONFIG}
+   sed -i '/^[[:space:]]*Protocol.*$/d' ${FILE_SSH_CONFIG}; echo "Protocol 2" >> ${FILE_SSH_CONFIG}
+   sed -i '/^[[:space:]]*Port.*$/d' ${FILE_SSH_CONFIG}; echo "Port 22" >> ${FILE_SSH_CONFIG}
+   sed -i '/^[[:space:]]*PubkeyAuthentication.*$/d' ${FILE_SSH_CONFIG}; echo "PubkeyAuthentication yes" >> ${FILE_SSH_CONFIG}
+
+   chown root:root ${FILE_SSH_CONFIG}
+   chmod 0644 ${FILE_SSH_CONFIG}
+   
+   echo "DONE"
+else
+   echo "FAILED - No $FILE_SSH_CONFIG to secure."
+fi
+
+if [ -e ${FILE_SSHD_CONFIG} ]; then
+   echo -n "- Securing ${FILE_SSHD_CONFIG} : "
+   sed -i '/^[[:space:]]*Port.*$/d' ${FILE_SSHD_CONFIG}; echo "Port 22" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*Protocol.*$/d' ${FILE_SSHD_CONFIG}; echo "Protocol 2" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*SyslogFacility.*$/d' ${FILE_SSHD_CONFIG}; echo "SyslogFacility AUTHPRIV" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*RhostsRSAAuthentication.*$/d' ${FILE_SSHD_CONFIG}; echo "RhostsRSAAuthentication no" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*HostbasedAuthentication.*$/d' ${FILE_SSHD_CONFIG}; echo "HostbasedAuthentication no" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*IgnoreRhosts.*$/d' ${FILE_SSHD_CONFIG}; echo "IgnoreRhosts yes" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*ClientAliveCountMax.*$/d' ${FILE_SSHD_CONFIG}; echo "ClientAliveCountMax 0" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*ClientAliveInterval.*$/d' ${FILE_SSHD_CONFIG}; echo "ClientAliveInterval 300" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*PasswordAuthentication.*$/d' ${FILE_SSHD_CONFIG}; echo "PasswordAuthentication yes" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*PermitEmptyPasswords.*$/d' ${FILE_SSHD_CONFIG}; echo "PermitEmptyPasswords no" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*PermitRootLogin.*$/d' ${FILE_SSHD_CONFIG}; echo "PermitRootLogin without-password" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*ChallengeResponseAuthentication.*$/d' ${FILE_SSHD_CONFIG}; echo "ChallengeResponseAuthentication no" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*GSSAPIAuthentication.*$/d' ${FILE_SSHD_CONFIG}; echo "GSSAPIAuthentication yes" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*GSSAPICleanupCredentials.*$/d' ${FILE_SSHD_CONFIG}; echo "GSSAPICleanupCredentials yes" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*Banner.*$/d' ${FILE_SSHD_CONFIG}; echo "Banner /etc/issue.net" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*X11Forwarding.*$/d' ${FILE_SSHD_CONFIG}; echo "X11Forwarding no" >> ${FILE_SSHD_CONFIG}
+   sed -i '/^[[:space:]]*MaxAuthTries.*$/d' ${FILE_SSHD_CONFIG}; echo "MaxAuthTries 5" >> ${FILE_SSHD_CONFIG}
+   
+   chown root:root ${FILE_SSHD_CONFIG}
+   chmod 0600 ${FILE_SSHD_CONFIG}
+   
+   echo "DONE"       
+else
+   echo "FAILED - No $FILE_SSHD_CONFIG to secure."
+fi
+
+### Enable/Disable standard services ###
+
+echo "Enabling standard services : "
+for SERVICE in ${SVC_ON_ARRAY[@]}; do
+  systemctl list-unit-files --type=service --no-pager | grep -q ${SERVICE}
+  if [ $? -eq 0 ]; then
+    systemctl enable ${SERVICE}
+  else
+    echo "Service : ${SERVICE} not present on this system."
+  fi
+done
+echo "DONE";
+
+echo "Disabling standard services : "
+for SERVICE in ${SVC_OFF_ARRAY[@]}; do
+  systemctl list-unit-files --type=service --no-pager | grep -q ${SERVICE}
+  if [ $? -eq 0 ]; then
+    systemctl stop ${SERVICE}
+	systemctl disable ${SERVICE}
+  else
+    echo "Service : ${SERVICE} not present on this system."
+  fi
+done
+echo "DONE"
+
+### Set daemon umask ###
+
+echo -n "Setting daemon umask : "
+sed -i 's/^umask.*$/umask ${DMNMASK}/' ${FILE_FUNCTIONS}
+sed -i '/^umask/d' ${FILE_INIT}; echo "umask ${DMNMASK}" >> ${FILE_INIT}
+chown root:root ${FILE_INIT}
+chmod 0644 ${FILE_INIT}
+echo "DONE"
+
+### Disable GUI login ###
+echo -n "Disabling GUI login : "
+systemctl set-default multi-user.target
+echo "DONE"
+
+### Network Parameter Modifications ###
+
+#Sysctl configuration
+echo -n "Modification of network and kernel parameters in sysctl.conf : "
+grep -q '# The following lines added, per Accenture Security$' ${FILE_SYSCTL} || echo "# The following lines added, per Accenture Security" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.default\.secure_redirects\ =/d' ${FILE_SYSCTL};  echo "net.ipv4.conf.default.secure_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.net\.ipv4\.conf\.all\.secure_redirects\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.all.secure_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.icmp_echo_ignore_broadcasts\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.icmp_echo_ignore_broadcasts = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.all\.accept_redirects\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.all.accept_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.default\.accept_redirects\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.default.accept_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.tcp_syncookies\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.tcp_syncookies = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.tcp_max_syn_backlog\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.tcp_max_syn_backlog = 4096" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.all\.rp_filter\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.all.rp_filter = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.default\.rp_filter\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.default.rp_filter = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.all\.accept_source_route\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.all.accept_source_route = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.default\.accept_source_route\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.default.accept_source_route = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.ip_forward\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.ip_forward = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.all\.send_redirects\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.all.send_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.conf\.default\.send_redirects\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.conf.default.send_redirects = 0" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv4\.icmp_ignore_bogus_error_responses\ =/d' ${FILE_SYSCTL}; echo "net.ipv4.icmp_ignore_bogus_error_responses = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv6\.conf\.all\.disable_ipv6\ =/d' ${FILE_SYSCTL}; echo "net.ipv6.conf.all.disable_ipv6 = 1" >> ${FILE_SYSCTL}
+sed -i '/^net\.ipv6\.conf\.default\.disable_ipv6\ =/d' ${FILE_SYSCTL}; echo "net.ipv6.conf.default.disable_ipv6 = 1" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.sysrq\ =/d' ${FILE_SYSCTL}; echo "kernel.sysrq = 0" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.core_uses_pid\ =/d' ${FILE_SYSCTL}; echo "kernel.core_uses_pid = 1" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.panic\ =/d' ${FILE_SYSCTL}; echo "kernel.panic = 60" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.msgmnb\ =/d' ${FILE_SYSCTL}; echo "kernel.msgmnb = 65536" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.msgmax\ =/d' ${FILE_SYSCTL}; echo "kernel.msgmax = 65536" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.shmmax\ =/d' ${FILE_SYSCTL}; echo "kernel.shmmax = 4294967295" >> ${FILE_SYSCTL}
+sed -i '/^kernel\.shmall\ =/d' ${FILE_SYSCTL}; echo "kernel.shmall = 268435456" >> ${FILE_SYSCTL}
+
+chown root:root ${FILE_SYSCTL}
+chmod 0600 ${FILE_SYSCTL}
+
+echo "DONE"
+
+### Capture Messages Sent To syslog AUTHPRIV Facility ####
+
+echo -n "Configuring rsyslog to capture AUTHPRIV messages : "
+grep -q -e '^authpriv\.\*[[:space:]]*/var/log/secure$' ${FILE_RSYSLOG} || echo -e "authpriv.*\t\t\t\t/var/log/secure" >> ${FILE_RSYSLOG}
+# Add record for 'auth.*', if doesn't exist, placing it after the authpriv record
+grep -q -e '^auth\.\*[[:space:]]*/var/log/messages' ${FILE_RSYSLOG} || sed -i '/^authpriv\.\*/a auth.*\t\t\t\t\t\t\t/var/log/messages' ${FILE_RSYSLOG}
+chown root:root ${FILE_RSYSLOG}
+# Original/default permissions are 0644.
+chmod 0600 ${FILE_RSYSLOG}
+echo "DONE";
+echo -n "Restarting syslog service : "
+systemctl restart rsyslog
+echo "DONE"
+
+### Set passwd, shadow, and group File Permissions ###
+
+echo -n "Verifiying passwd, shadow, and group file permissions : "
+chown root:root ${FILE_GROUP} ${FILE_GSHADOW} ${FILE_PASSWD} ${FILE_SHADOW}
+chmod 0644 ${FILE_GROUP} ${FILE_PASSWD}
+chmod 0000 ${FILE_GSHADOW} ${FILE_SHADOW}
+echo "DONE";
+
+### Block Login of System Accounts ###
+echo -n "Blocking login of system accounts : "
+for uid in $(cut -d: -f3 ${FILE_PASSWD}); do
+    if [ ${uid} -lt 1000 -a ${uid} -gt 0 ]; then
+		passwd -uf $(getent passwd ${uid} | cut -d':' -f1)
+        usermod -L -s /sbin/nologin $(getent passwd ${uid} | cut -d':' -f1)
+    fi
+done
+echo "DONE"
+
+echo "Restricting at/cron to authorized users : "
+# At a minimum cron.allow should exist and list root
+echo root > ${FILE_CRON_ALLOW}
+chown root:root ${FILE_CRON_ALLOW}
+chmod 0400 ${FILE_CRON_ALLOW} ${FILE_CRON_ALLOW}
+
+echo "DONE"
+
+### Restrict permissions on crontab files ###
+
+echo -n "Restricting permissions on crontab files : "
+chown root:root ${FILE_CRONTAB} ${FILE_ANACRONTAB} ${FILE_CROND} ${FILE_CRON_DAILY} ${FILE_CRON_DENY} ${FILE_CRON_HOURLY} ${FILE_CRON_WEEKLY} ${FILE_CRON_MONTHLY}
+chmod go-rwx ${FILE_CRONTAB} ${FILE_ANACRONTAB} ${FILE_CROND} ${FILE_CRON_DAILY} ${FILE_CRON_DENY} ${FILE_CRON_HOURLY} ${FILE_CRON_WEEKLY} ${FILE_CRON_MONTHLY}
+chown -R root:root ${FILE_SPOOL_CRON}
+chmod -R go-rwx ${FILE_SPOOL_CRON}
+echo "DONE"
+
+### Restrict root logins to system console ###
+
+echo -n "Restricting root logins to system console : "
+echo console > ${FILE_SECURETTY}
+
+for i in `seq 1 6`; do
+    echo tty$i >> ${FILE_SECURETTY}
+done
+# These are acceptable for the GUI and runlevel 3, when trimmed down to 6
+for i in `seq 1 6`; do
+    echo vc/$i >> ${FILE_SECURETTY}
+done
+
+chown root:root ${FILE_SECURETTY}
+chmod 0600 ${FILE_SECURETTY}
+echo "DONE"
+
+### Set account expiration parameters on active accounts ###
+# Interestingly enough, the login.defs manpage indicates these functions are now all handled by PAM.
+# This changes the defaults applicable to new accounts added to the system after this point.
+
+echo -n "Setting account expiration parameters on active accounts : "
+sed -i '/^PASS_MAX_DAYS/d' ${FILE_LOGIN_DEFS}; echo "PASS_MAX_DAYS 60" >> ${FILE_LOGIN_DEFS}
+sed -i '/^PASS_MIN_DAYS/d' ${FILE_LOGIN_DEFS}; echo "PASS_MIN_DAYS 7" >> ${FILE_LOGIN_DEFS}
+sed -i '/^PASS_WARN_AGE/d' ${FILE_LOGIN_DEFS}; echo "PASS_WARN_AGE 7" >> ${FILE_LOGIN_DEFS}
+sed -i '/^PASS_MIN_LEN/d' ${FILE_LOGIN_DEFS}; echo "PASS_MIN_LEN 9" >> ${FILE_LOGIN_DEFS}
+sed -i '/^FAIL_DELAY/d' ${FILE_LOGIN_DEFS}; echo "FAIL_DELAY 5" >> ${FILE_LOGIN_DEFS}
+
+useradd -D -f 7
+
+chown root:root ${FILE_LOGIN_DEFS}
+chmod 0640 ${FILE_LOGIN_DEFS}
+echo "DONE"
+
+### Set default umask for users ###
+
+echo -n "Setting default umask for users : "
+# Forced umask assignment into /etc/skel/.bashrc for consistency
+
+sed -i "s/umask .\{3\}/umask ${USRMASK}/" ${FILE_BASHRC}
+sed -i "s/umask .\{3\}/umask ${USRMASK}/" ${FILE_CSH_CSHRC}
+sed -i "s/umask .\{3\}/umask ${USRMASK}/" ${FILE_CSH_LOGIN}
+sed -i "s/umask .\{3\}/umask ${USRMASK}/" ${FILE_PROFILE}
+sed -i "s/umask .\{3\}/umask ${USRMASK}/" ${FILE_ROOT_BASH_PROFILE}
+echo "umask ${USRMASK}" >> ${FILE_SKEL_BASHRC}
+echo "umask ${USRMASK}" >> ${FILE_ROOT_BASHRC}
+echo "umask ${USRMASK}" >> ${FILE_ROOT_CSHRC}
+echo "umask ${USRMASK}" >> ${FILE_TCSHRC}
+chown root:root ${FILE_BASHRC} ${FILE_CSH_CSHRC} ${FILE_CSH_LOGIN} ${FILE_PROFILE}
+chmod 0644 ${FILE_BASHRC} ${FILE_CSH_CSHRC} ${FILE_CSH_LOGIN} ${FILE_PROFILE}
+chown root:root ${FILE_ROOT_BASH_PROFILE} ${FILE_ROOT_BASHRC} ${FILE_ROOT_CSHRC} ${FILE_TCSHRC}
+chmod 0600 ${FILE_ROOT_BASH_PROFILE} ${FILE_ROOT_BASHRC} ${FILE_ROOT_CSHRC} ${FILE_TCSHRC}
+echo "DONE"
+
+### Write everything to log - it's good to have auditd or snoopy onboard as well
+echo -n "Setting additional logger for users : "
+echo "export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; }); logger -p local5.info "\$HOSTNAME [HIST] : \$SSH_CLIENT : \$PWD : \$msg"; }'" >> ${FILE_BASHRC}
+echo "DONE";
+
+### Disable core dumps ###
+
+echo -n "Disabling core dumps : "
+sed -i '/^.*[[:space:]]*soft[[:space:]]*core/d' ${FILE_LIMITS_CONF}; echo "* soft core 0" >> ${FILE_LIMITS_CONF}
+sed -i '/^.*[[:space:]]*hard[[:space:]]*core/d' ${FILE_LIMITS_CONF}; echo "* hard core 0" >> ${FILE_LIMITS_CONF}
+chown root:root ${FILE_LIMITS_CONF}
+chmod 0644 ${FILE_LIMITS_CONF}
+echo "DONE"
+
+### Create Warning Banners ###
+
+echo -n "Creating warning banners : "
+echo "
+*******************************************************************************
+*                                                                             *
+*                    Accenture Security Advisory Warning                      *
+*                                                                             *
+* This system is the property of Accenture, and is to be used in accordance   *
+* with applicable Accenture Policies.  Unauthorized access or activity is a   *
+* violation of Accenture Policies and may be a violation of law.  Use of this *
+* system constitutes consent to monitoring or unauthorized use, in accordance *
+* with Accenture Policies, local laws, and regulations. Unauthorized use may  *
+* result in penalties including, but not limited to, reprimand,  dismissal,   *
+* financial penalties, and legal action.                                      *
+*                                                                             *
+*******************************************************************************
+" | tee ${FILE_ISSUE} > ${FILE_ISSUE_NET}
+cat ${FILE_ISSUE_NET} | tee ${FILE_MOTD}
+
+# Protect banner
+chown root:root ${FILE_MOTD} ${FILE_ISSUE} ${FILE_ISSUE_NET}
+chmod 644 ${FILE_MOTD} ${FILE_ISSUE} ${FILE_ISSUE_NET}
+echo "DONE" 
+
+### Pam Authentication configuration ###
+
+echo -n "Configuring PAM authentication : "
+grep -q -e '^auth[[:space:]]*required[[:space:]]*pam_tally2.so deny=7 onerr=fail unlock_time=1800' ${FILE_SYSTEM_AUTHAC} || sed -i '/^auth[[:space:]]*required[[:space:]]*pam_env.so.*$/a auth        required      pam_tally2.so file=/var/log/tallylog deny=3 unlock_time=1200' ${FILE_SYSTEM_AUTHAC}
+sed -i 's/^password[[:space:]]*requisite[[:space:]]*pam_cracklib.so.*$/password    requisite     pam_cracklib.so try_first_pass retry=3 dcredit=-1 lcredit=-1 ocredit=-1 ucredit=-1 minlen=9/' ${FILE_SYSTEM_AUTHAC}
+sed -i 's/^password[[:space:]]*sufficient[[:space:]]*pam_unix.so.*$/password    sufficient    pam_unix.so sha512 shadow nullok try_first_pass use_authtok remember=4/' ${FILE_SYSTEM_AUTHAC}
+chown root:root ${FILE_SYSTEM_AUTHAC}
+chmod 0644 ${FILE_SYSTEM_AUTHAC}
+echo "DONE"
+
+### Restrict permissions to 0644 on /usr/share/man and /usr/share/doc content ###
+
+echo "Restricting permissions on /usr/share/man and /usr/share/doc content : "
+chmod -R go-w ${FILE_SHARE_DOC} ${FILE_LOCAL_SHARE_DOC} ${FILE_SHARE_MAN} ${FILE_LOCAL_SHARE_MAN}
+echo -e "DONE"
+
+### Disable MTA aliases decode ###
+# Deactivate the decode entry in the /etc/aliases file
+echo -n "Fixed ${FILE_ETC_ALIASES} without decode : "
+sed -i 's/^decode:/#decode:/' ${FILE_ETC_ALIASES}
+newaliases
+chown root:root ${FILE_ETC_ALIASES}
+chmod 0644 ${FILE_ETC_ALIASES}
+echo "DONE"
+
+### Set core dump directory owner and permissions ###
+
+echo "Setting core dump directory owner and permissions : "
+chown -R root:root /var/crash
+chmod -R 700 /var/crash
+echo -e "DONE"
+
+### Set root home directory permissions ###
+echo "Setting root home directory permissions : "
+chown root:root /root
+chmod 0700 /root
+echo -e "DONE"
+
+############################################
+### CLEAN UP SECTION                     ###
+############################################
+echo -n "Clean up variables : "
+#Files variables
+unset -f $FILE_CTRLALTDEL $FILE_WTMP $FILE_SSH_CONFIG $FILE_SSHD_CONFIG $FILE_FUNCTIONS $FILE_INIT $FILE_SYSCTL $FILE_RSYSLOG $FILE_GROUP $FILE_GSHADOW $FILE_PASSWD $FILE_SHADOW $FILE_CRON_ALLOW $FILE_AT_ALLOW $FILE_CRONTAB $FILE_SPOOL_CRON $FILE_ANACRONTAB $FILE_CROND $FILE_CRON_DAILY $FILE_CRON_DENY $FILE_CRON_HOURLY $FILE_CRON_WEEKLY $FILE_CRON_MONTHLY $FILE_SECURETTY $FILE_LOGIN_DEFS $FILE_BASHRC $FILE_CSH_CSHRC $FILE_CSH_LOGIN $FILE_PROFILE $FILE_ROOT_BASH_PROFILE $FILE_SKEL_BASHRC $FILE_ROOT_BASHRC $FILE_ROOT_CSHRC $FILE_TCSHRC $FILE_LIMITS_CONF $FILE_ISSUE_NET $FILE_ISSUE $FILE_MOTD $FILE_SYSTEM_AUTHAC $FILE_SHARE_DOC $FILE_LOCAL_SHARE_DOC $FILE_SHARE_MAN $FILE_LOCAL_SHARE_MAN $FILE_ETC_ALIASES
+#Services variables
+unset -f $SVC_OFF_TALK $SVC_OFF_PRINTER $SVC_OFF_TELNET $SVC_OFF_RLOGIND $SVC_OFF_REXEC $SVC_OFF_REXD $SVC_OFF_RSHD $SVC_OFF_RSTATD $SVC_OFF_RUSERSD $SVC_OFF_PORTMAP $SVC_OFF_PCSCD $SVC_OFF_NTALK $SVC_OFF_MCTRANS $SVC_OFF_MDMONITOR $SVC_OFF_KSHELL $SVC_OFF_KLOGIN $SVC_OFF_KCMS $SVC_OFF_FIREWALLD $SVC_OFF_IDENTD $SVC_OFF_HPLIP $SVC_OFF_TFTP $SVC_OFF_FTP $SVC_OFF_DTSPCD $SVC_OFF_DTSPC $SVC_OFF_DISCARD $SVC_OFF_DAYTIME $SVC_OFF_CHARGEN $SVC_OFF_COMSAT $SVC_OFF_CMSD $SVC_OFF_RPC_CMSD $SVC_OFF_FINGER $SVC_OFF_BOOTPS $SVC_OFF_APMD $SVC_OFF_NETWORKMANAGER $SVC_OFF_AUTOFS $SVC_OFF_AVAHI_DAEMON $SVC_OFF_CERTMONGER $SVC_OFF_CGCONFIG $SVC_OFF_CGRED $SVC_OFF_DNSMASQ $SVC_OFF_FIRSTBOOT $SVC_OFF_IP6TABLES $SVC_OFF_IPTABLES $SVC_OFF_KDUMP $SVC_OFF_MICROCODE_CTL $SVC_OFF_NETCONSOLE $SVC_OFF_NFS $SVC_OFF_NFSLOCK $SVC_OFF_NSCD $SVC_OFF_NSLCD $SVC_OFF_NTPDATE $SVC_OFF_ODDJOBD $SVC_OFF_POSTFIX $SVC_OFF_PSACCT $SVC_OFF_RDISC $SVC_OFF_RESTORECOND $SVC_OFF_RPCBIND $SVC_OFF_RPCSVCGSSD $SVC_OFF_SASLAUTHD $SVC_OFF_SMARTD $SVC_OFF_SSSD $SVC_OFF_WPA_SUPPLICANT $SVC_OFF_YPBIND $SVC_OFF_APMD $SVC_OFF_BLUETOOTH $SVC_OFF_CUPS $SVC_OFF_GPM $SVC_OFF_HTTPD $SVC_OFF_IRDA $SVC_OFF_ISDN $SVC_OFF_KTUNE $SVC_OFF_KUDZU $SVC_OFF_MYSQLD $SVC_OFF_NAMED $SVC_OFF_PORTMAP $SVC_OFF_POSTGRESQL $SVC_OFF_PRIVOXY $SVC_OFF_QUOTA_NLD $SVC_OFF_RNGD $SVC_OFF_RSTATD $SVC_OFF_RUSERSD $SVC_OFF_RWHOD $SVC_OFF_SMB $SVC_OFF_SNMPD $SVC_OFF_SPAMASSASSIN $SVC_OFF_SPICE_VDAGENTD $SVC_OFF_SQUID $SVC_OFF_TUNED $SVC_OFF_TUX $SVC_OFF_WDAEMON $SVC_OFF_WINE $SVC_OFF_YPSERV $SVC_OFF_YPXFRD $SVC_OFF_YUM_UPDATESD $SVC_OFF_ZEBRA $SVC_OFF_ABRT_CCPP $SVC_OFF_ABRT_OOPS $SVC_OFF_MCELOGD $SVC_OFF_PORTRESERVE $SVC_OFF_QPIDD $SVC_OFF_REDIS $SVC_OFF_RHSMCERTD $SVC_OFF_HALDAEMON $SVC_ON_KDUMP $SVC_ON_SETROUBLESHOOT $SVC_ON_ABRTD $SVC_ON_ACPID $SVC_ON_ATD $SVC_ON_AUDITD $SVC_ON_CPUSPEED $SVC_ON_CROND $SVC_ON_IRQBALANCE $SVC_ON_LVM2_MONITOR $SVC_ON_MDMONITOR $SVC_ON_MESSAGEBUS $SVC_ON_NETFS $SVC_ON_NETWORK $SVC_ON_NTPD $SVC_ON_RHNSD $SVC_ON_RPCGSSD $SVC_ON_RPCIDMAPD $SVC_ON_RSYSLOG $SVC_ON_SSHD $SVC_ON_SYSSTAT $SVC_ON_UDEV_POST
+echo "DONE"
+
